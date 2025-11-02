@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Woldia University - Student Course Portal</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background-color: powderblue;
+            color: MediumSeaGreen;
+            text-align: center;
+            border-radius: 40px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 10px;
+        }
+        
+        .search-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        input[type="text"] {
+            padding: 12px;
+            margin: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+            font-size: 16px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .results {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .student-result {
+            margin-bottom: 20px;
+            padding: 20px;
+            border-left: 4px solid #4CAF50;
+            background-color: #f9f9f9;
+        }
+        
+        .course-list {
+            margin-left: 20px;
+        }
+        
+        .course-list li {
+            margin: 8px 0;
+            padding: 5px;
+            background: white;
+            border-radius: 3px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            text-align: center;
+                }
+        
+        .success {
+            color: green;
+            background-color: #e6ffe6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            text-align: center;
+        }
+        
+        .admin-link {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        .admin-link a {
+            color: #666;
+            text-decoration: none;
+        }
+        
+        .instructions {
+            background: #e6f7ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Woldia University - Student Course Completion Portal</h2>
+    </div>
+
+    <div class="instructions">
+        <p>Enter your full name to view your completed courses</p>
+    </div>
+
+    <div class="search-section">
+        <input type="text" id="searchInput" placeholder="Enter your full name">
+        <button onclick="searchStudent()">Search My Courses</button>
+    </div>
+
+    <div id="loading" class="hidden">Loading your courses...</div>
+    <div id="error" class="error hidden"></div>
+    <div id="success" class="success hidden"></div>
+
+    <div id="results" class="results hidden">
+        <h3 id="resultsTitle">Your Completed Courses</h3>
+        <div id="resultsContent"></div>
+    </div>
+
+    <div class="admin-link">
+        <a href="admin.html">Administrator Access</a>
+    </div>
+    <script>
+    // This will hold all student data loaded from the JSON file
+    let studentsData = {};
+    const searchInput = document.getElementById('searchInput');
+    const resultsDiv = document.getElementById('results');
+    const resultsContentDiv = document.getElementById('resultsContent');
+    const loadingDiv = document.getElementById('loading');
+    const errorDiv = document.getElementById('error');
+    const successDiv = document.getElementById('success');
+
+    // --- Utility Functions ---
+
+    function showLoading() { loadingDiv.classList.remove('hidden'); }
+    function hideLoading() { loadingDiv.classList.add('hidden'); }
+    function hideError() { errorDiv.classList.add('hidden'); }
+    function hideSuccess() { successDiv.classList.add('hidden'); }
+    function hideResults() { resultsDiv.classList.add('hidden'); resultsContentDiv.innerHTML = ''; }
+
+    function showError(message) {
+        errorDiv.textContent = message;
+        errorDiv.classList.remove('hidden');
+        hideSuccess();
+        hideResults();
+    }
+
+    function displayStudentResult(fullName, data) {
+        hideResults(); // Ensure it's cleared before adding new content
+        
+        let html = '<div class="student-result">';
+        html += '<h4>Student: ' + fullName + '</h4>';
+        html += '<h5>Completed Courses (' + data.courses.length + ')</h5>';
+        html += '<ul class="course-list">';
+        
+        data.courses.forEach(course => {
+            html += '<li>' + course + '</li>';
+        });
+
+        html += '</ul></div>';
+        
+        resultsContentDiv.innerHTML = html;
+        resultsDiv.classList.remove('hidden');
+    }
+
+    // --- Core Functions ---
+
+    function loadStudentData() {
+        showLoading();
+        hideError();
+        hideResults();
+
+        // 1. **CRITICAL CHANGE:** Fetch the students.json file generated by the admin panel
+        fetch('data/students.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Data file not found or empty. Has the Admin uploaded the data?');
+                }
+                return response.json();
+            })
+            .then(data => {
+                studentsData = data;
+                hideLoading();
+                console.log('Student data loaded successfully. Total students:', Object.keys(data).length);
+            })
+            .catch(error => {
+                hideLoading();
+                showError('Could not load student data. Please ensure the admin has committed the data/students.json file. (' + error.message + ')');
+                studentsData = {}; // Clear any previous data
+            });
+    }
+
+    function searchStudent() {
+        const query = searchInput.value.trim();
+        
+        if (!query) {
+            showError('Please enter your full name or first name to search.');
+            return;
+        }
+        
+        if (Object.keys(studentsData).length === 0) {
+            showError('No student data is currently available. Please contact administrator.');
+            return;
+        }
+        
+        const normalizedQuery = query.toLowerCase();
+        let foundStudent = null;
+        let foundKey = null;
+        
+        // **CRITICAL CHANGE:** Search by Full Name (Key) OR First Name (Value)
+        for (const [fullName, data] of Object.entries(studentsData)) {
+            const normalizedFullName = fullName.toLowerCase();
+            const normalizedFirstName = data.first_name ? data.first_name.toLowerCase() : '';
+
+            // Check for Exact Full Name Match
+            if (normalizedFullName === normalizedQuery) {
+                foundStudent = data;
+                foundKey = fullName;
+                break;
+            }
+            
+            // Check for Exact First Name Match
+            if (normalizedFirstName === normalizedQuery) {
+                // IMPORTANT: If multiple students have the same first name, this finds the first one.
+                // For a true university system, a unique ID (like student_id) should be used.
+                foundStudent = data;
+                foundKey = fullName;
+                break;
+            }
+        }
+        
+        if (foundStudent) {
+            displayStudentResult(foundKey, foundStudent);
+            hideError();
+        } else {
+            showError('Student not found. Please check your spelling or try using your full name.');
+            hideResults();
+        }
+    }
+
+    // --- Event Listeners ---
+    window.addEventListener('DOMContentLoaded', function() {
+        loadStudentData();
+        // Allow searching by pressing Enter key
+        searchInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchStudent();
+            }
+        });
+    });
+</script>
+    </body>
+</html>
+
