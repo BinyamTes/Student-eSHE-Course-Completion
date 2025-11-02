@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Woldia University - Admin Panel</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .header {
+            background-color: powderblue;
+            color: MediumSeaGreen;
+            text-align: center;
+            border-radius: 40px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 30px;
+            padding: 10px;
+        }
+        
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .preview-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        input[type="file"] {
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 100%;
+        }
+        
+        input[type="password"] {
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            width: 300px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 16px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button.secondary {
+            background-color: #666;
+        }
+        
+        button.secondary:hover {
+            background-color: #555;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .error {
+            color: red;
+            background-color: #ffe6e6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .success {
+            color: green;
+            background-color: #e6ffe6;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .login-section {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .student-preview {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .student-item {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .back-link {
+            text-align: center;
+                        margin: 20px 0;
+        }
+        
+        .back-link a {
+            color: #666;
+            text-decoration: none;
+        }
+        
+        .data-section {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h2>Woldia University - Admin Course Management</h2>
+    </div>
+
+    <div id="loginSection" class="login-section">
+        <h3>Admin Login</h3>
+        <input type="password" id="passwordInput" placeholder="Enter admin password">
+        <button id="loginButton">Login</button>
+        <div id="loginError" class="error hidden">Invalid password</div>
+        <p><small>Default password: <strong>admin123</strong></small></p>
+    </div>
+
+    <div id="adminPanel" class="hidden">
+        <div class="upload-section">
+            <h3>Upload Student Course Data</h3>
+            <p>Upload Excel file with columns: Full_Name, First_Name, Course</p>
+            <input type="file" id="fileInput" accept=".xlsx, .xls">
+            <button id="processButton">Process File</button>
+            <button id="previewButton" class="secondary">Preview Current Data</button>
+            <button id="jsonButton" class="secondary">Show JSON Data</button>
+            <button id="logoutButton" class="secondary">Logout</button>
+        </div>
+
+        <div id="loading" class="hidden">Processing file... Please wait.</div>
+        <div id="error" class="error hidden"></div>
+        <div id="success" class="success hidden"></div>
+
+        <div id="previewSection" class="preview-section hidden">
+            <h3>Current Student Data Preview</h3>
+            <div id="previewContent" class="student-preview"></div>
+            <button id="closePreviewButton">Close Preview</button>
+        </div>
+
+        <div id="jsonSection" class="data-section hidden">
+            <h3>JSON Data (Copy this to students.json)</h3>
+            <p>After processing your Excel file, copy the JSON below and save it as <code>data/students.json</code></p>
+            <textarea id="jsonOutput" readonly></textarea>
+            <button id="closeJsonButton">Close</button>
+            <button id="copyJsonButton">Copy to Clipboard</button>
+        </div>
+    </div>
+
+    <div class="back-link">
+        <a href="index.html">← Back to Student Portal</a>
+    </div>
+
+    <!-- Include SheetJS library for Excel processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <script>
+        // Define all functions first
+        const ADMIN_PASSWORD = "admin123";
+        let currentStudentsData = {};
+
+        function login() {
+            console.log("Login function called");
+            const password = document.getElementById('passwordInput').value;
+            
+            if (password === ADMIN_PASSWORD) {
+                document.getElementById('loginSection').classList.add('hidden');
+                document.getElementById('adminPanel').classList.remove('hidden');
+                document.getElementById('loginError').classList.add('hidden');
+                document.getElementById('passwordInput').value = '';
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function logout() {
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('loginError').classList.add('hidden');
+        }
+
+        function loadCurrentData() {
+            currentStudentsData = {};
+            console.log("Current data loaded");
+        }
+        
+                function processFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showError('Please select an Excel file');
+                return;
+            }
+
+            showLoading();
+            hideError();
+            hideSuccess();
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const worksheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[worksheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    console.log("Excel data loaded:", jsonData);
+                    processStudentData(jsonData);
+                    
+                } catch (error) {
+                    hideLoading();
+                    showError('Error processing file: ' + error.message);
+                    console.error("File processing error:", error);
+                }
+            };
+            
+            reader.onerror = function(error) {
+                hideLoading();
+                showError('Error reading file');
+                console.error("File reading error:", error);
+            };
+            
+            reader.readAsArrayBuffer(file);
+        }
+
+        function processStudentData(jsonData) {
+            const studentsData = {};
+            let processedCount = 0;
+            
+            jsonData.forEach(function(row) {
+                const fullName = row['Full_Name'] ? String(row['Full_Name']).trim() : '';
+                const firstName = row['First_Name'] ? String(row['First_Name']).trim() : '';
+                const course = row['Course'] ? String(row['Course']).trim() : '';
+                
+                if (fullName && course) {
+                    if (!studentsData[fullName]) {
+                        studentsData[fullName] = {
+                            courses: [],
+                            first_name: firstName || fullName.split(' ')[0]
+                        };
+                    }
+                    
+                    if (course && !studentsData[fullName].courses.includes(course)) {
+                        studentsData[fullName].courses.push(course);
+                        processedCount++;
+                    }
+                }
+            });
+            
+            currentStudentsData = studentsData;
+            
+            hideLoading();
+            showSuccess('Data processed successfully! ' + 
+                       Object.keys(studentsData).length + ' students found, ' + 
+                       processedCount + ' course entries processed.');
+            
+            generateJsonOutput(studentsData);
+        }
+
+        function generateJsonOutput(data) {
+            const jsonOutput = document.getElementById('jsonOutput');
+            const formattedJson = JSON.stringify(data, null, 2);
+            jsonOutput.value = formattedJson;
+        }
+
+        function showJsonData() {
+            if (Object.keys(currentStudentsData).length === 0) {
+                showError('No data available. Please upload a file first.');
+                return;
+            }
+            generateJsonOutput(currentStudentsData);
+            document.getElementById('jsonSection').classList.remove('hidden');
+        }
+
+        function hideJsonData() {
+            document.getElementById('jsonSection').classList.add('hidden');
+        }
+
+        function copyJsonToClipboard() {
+            const jsonOutput = document.getElementById('jsonOutput');
+            jsonOutput.select();
+            jsonOutput.setSelectionRange(0, 99999);
+            
+            try {
+                document.execCommand('copy');
+                showSuccess('JSON copied to clipboard!');
+            } catch (err) {
+                showError('Failed to copy JSON');
+
+                        }
+        }
+
+        function previewCurrentData() {
+            if (Object.keys(currentStudentsData).length === 0) {
+                showError('No current data available. Please upload a file first.');
+                return;
+            }
+            
+            const previewContent = document.getElementById('previewContent');
+            let html = '<h4>Processed Data Preview (First 50 students):</h4>';
+            
+            const students = Object.entries(currentStudentsData).slice(0, 50);
+            
+            students.forEach(function(student) {
+                const fullName = student[0];
+                const studentData = student[1];
+                html += '<div class="student-item">';
+                html += '<strong>' + fullName + '</strong> ';
+                html += '(' + studentData.first_name + ') - ';
+                html += studentData.courses.length + ' courses: ';
+                html += studentData.courses.join(', ');
+                html += '</div>';
+            });
+            
+            if (Object.keys(currentStudentsData).length > 50) {
+                html += '<p>... and ' + (Object.keys(currentStudentsData).length - 50) + ' more students</p>';
+            }
+            
+            previewContent.innerHTML = html;
+            document.getElementById('previewSection').classList.remove('hidden');
+        }
+
+        function hidePreview() {
+            document.getElementById('previewSection').classList.add('hidden');
+        }
+
+        function showLoading() {
+            document.getElementById('loading').classList.remove('hidden');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.add('hidden');
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.classList.remove('hidden');
+            hideSuccess();
+        }
+
+        function hideError() {
+            document.getElementById('error').classList.add('hidden');
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('success');
+            successDiv.textContent = message;
+            successDiv.classList.remove('hidden');
+            hideError();
+        }
+
+        function hideSuccess() {
+            document.getElementById('success').classList.add('hidden');
+        }
+
+        // Initialize event listeners when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("Page loaded, initializing event listeners");
+            
+            // Login functionality
+            document.getElementById('loginButton').addEventListener('click', login);
+            document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    login();
+                }
+            });
+            
+            // Admin panel buttons
+            document.getElementById('processButton').addEventListener('click', processFile);
+            document.getElementById('previewButton').addEventListener('click', previewCurrentData);
+            document.getElementById('jsonButton').addEventListener('click', showJsonData);
+            document.getElementById('logoutButton').addEventListener('click', logout);
+            
+            // Close buttons
+            document.getElementById('closePreviewButton').addEventListener('click', hidePreview);
+            document.getElementById('closeJsonButton').addEventListener('click', hideJsonData);
+            document.getElementById('copyJsonButton').addEventListener('click', copyJsonToClipboard);
+            
+            // Load initial data
+            loadCurrentData();
+            
+            console.log("All event listeners initialized");
+        });
+    </script>
+</body>
+</html>
